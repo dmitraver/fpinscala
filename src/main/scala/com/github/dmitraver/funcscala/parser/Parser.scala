@@ -8,7 +8,7 @@ import scala.util.matching.Regex
 trait Parsers[ParseError, Parser[+_]] { self =>
   def char(c: Char): Parser[Char] = string(c.toString).map(_.head)
   def succeed[A](a: A): Parser[A] = string("").map(_ => a)
-  def string(s: String): Parser[String] // "abracadabra" ?
+  def string(s: String, errorMsg: Option[String] = None): Parser[String] // error: Expected "str" but found "str".
   def orString(s1: String, s2: String): Parser[String] // "abra" or "cadabra" ?
   def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
   def run[A](p: Parser[A])(input: String): Either[ParseError, A]
@@ -54,8 +54,13 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   def split[A](p: Parser[A], separator: Char): Parser[List[A]]
   def split[A, B](p: Parser[A], separator: Parser[B]): Parser[List[A]]
 
+
+  // error handling
+  def errorLocation(error: ParseError): ErrorLocation
+  def errorMessage(error: ParseError): String
+
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOpts[String] = ParserOpts(f(a))
-  implicit def regex(r: Regex): Parser[String]
+  implicit def regex(r: Regex, errorMsg: Option[String] = None): Parser[String] // Error: string "str" doesn't match the regular expression "regexp"
 
   implicit class ParserOpts[A](p: Parser[A]) {
     def |[B >: A](p1: Parser[B]): Parser[B] = self.or(p, p1)
@@ -73,6 +78,8 @@ trait Parsers[ParseError, Parser[+_]] { self =>
 
   val followedBy = regex("\\d".r).flatMap(s => listOfN(s.toInt, char('a')))
 }
+
+case class ErrorLocation(position: Int)
 
 trait JSON
 object JSON {
@@ -94,26 +101,10 @@ object Application {
     val spaces = space.many.slice
     val newLine = string("\n")
 
-    /**
-      * {
-      *
-      *    "hello": "test",
-      *    "age":   789,  // 789, 2.35
-      *    "smth":  [1,2,3,4]
-      *    ""
-      *
-      *    ""    ,   \n
-      *       ""
-      *
-      *
-      */
-
-
-
     val bool = string("true") | string("false") map(b => JBool(b.toBoolean)) // ready
     val number = for {
       sign   <- char('-') onError '+'
-      first  <- digit.many1.slice // will it result in error?
+      first  <- digit.many1.slice
       dot    <- string(".") onError ""
       second <- digit.many.slice
     } yield JNumber((sign + first + dot + second).toDouble)
