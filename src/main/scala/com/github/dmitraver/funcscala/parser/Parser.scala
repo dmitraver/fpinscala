@@ -5,7 +5,7 @@ import com.github.dmitraver.funcscala.parser.JSON._
 import scala.language.higherKinds
 import scala.util.matching.Regex
 
-trait Parsers[ParseError, Parser[+_]] { self =>
+trait Parsers[Parser[+_]] { self =>
   def char(c: Char): Parser[Char] = string(c.toString).map(_.head)
   def succeed[A](a: A): Parser[A] = string("").map(_ => a)
   def string(s: String, errorMsg: Option[String] = None): Parser[String] // error: Expected "str" but found "str".
@@ -58,6 +58,8 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   // error handling
   def errorLocation(error: ParseError): ErrorLocation
   def errorMessage(error: ParseError): String
+  def label[A](label: String)(p: Parser[A]): Parser[A]
+  def scope[A](msg: String)(p: Parser[A]): Parser[A]
 
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOpts[String] = ParserOpts(f(a))
   implicit def regex(r: Regex, errorMsg: Option[String] = None): Parser[String] // Error: string "str" doesn't match the regular expression "regexp"
@@ -79,7 +81,14 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   val followedBy = regex("\\d".r).flatMap(s => listOfN(s.toInt, char('a')))
 }
 
-case class ErrorLocation(position: Int)
+case class ParseError(errors: List[(ErrorLocation, String)])
+case class ErrorLocation(input: String, offset: Int = 0) {
+  lazy val line = input.slice(0, offset + 1).count(_ == '\n') + 1
+  lazy val col = input.slice(0, offset + 1).lastIndexOf('\n') match {
+    case -1 => offset + 1
+    case lineStart => offset - lineStart
+  }
+}
 
 trait JSON
 object JSON {
