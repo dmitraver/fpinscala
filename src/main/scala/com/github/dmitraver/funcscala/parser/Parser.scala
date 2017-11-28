@@ -8,7 +8,7 @@ import scala.util.matching.Regex
 trait Parsers[Parser[+_]] { self =>
   def char(c: Char): Parser[Char] = string(c.toString).map(_.head)
   def succeed[A](a: A): Parser[A] = string("").map(_ => a)
-  def string(s: String, errorMsg: Option[String] = None): Parser[String] // error: Expected "str" but found "str".
+  implicit def string(s: String): Parser[String]
   def orString(s1: String, s2: String): Parser[String] // "abra" or "cadabra" ?
   def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
   def run[A](p: Parser[A])(input: String): Either[ParseError, A]
@@ -62,7 +62,7 @@ trait Parsers[Parser[+_]] { self =>
   def scope[A](msg: String)(p: Parser[A]): Parser[A]
 
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]): ParserOpts[String] = ParserOpts(f(a))
-  implicit def regex(r: Regex, errorMsg: Option[String] = None): Parser[String] // Error: string "str" doesn't match the regular expression "regexp"
+  implicit def regex(r: Regex): Parser[String]
 
   implicit class ParserOpts[A](p: Parser[A]) {
     def |[B >: A](p1: Parser[B]): Parser[B] = self.or(p, p1)
@@ -77,8 +77,6 @@ trait Parsers[Parser[+_]] { self =>
     def split[B](separator: Parser[B]): Parser[List[A]] = self.split(p, separator)
     def onError(a: A): Parser[A] = self.onError(p, a)
   }
-
-  val followedBy = regex("\\d".r).flatMap(s => listOfN(s.toInt, char('a')))
 }
 
 case class ParseError(errors: List[(ErrorLocation, String)])
@@ -102,15 +100,15 @@ object JSON {
 
 object Application {
 
-  def jsonParser[Err, Parser[+_]](P: Parsers[Err, Parser]): Parser[JSON] = {
+  def jsonParser[Err, Parser[+_]](P: Parsers[Parser]): Parser[JSON] = {
     import P._
     val letter = regex("[a-zA-Z]".r).map(_.head)
     val digit = regex("[0-9]".r).map(_.head.toInt)
     val space = char(' ')
     val spaces = space.many.slice
-    val newLine = string("\n")
+    val newLine = char('\n')
 
-    val bool = string("true") | string("false") map(b => JBool(b.toBoolean)) // ready
+    val bool = ("true" or "false") map(b => JBool(b.toBoolean))
     val number = for {
       sign   <- char('-') onError '+'
       first  <- digit.many1.slice
@@ -118,27 +116,27 @@ object Application {
       second <- digit.many.slice
     } yield JNumber((sign + first + dot + second).toDouble)
 
-    val comma = spaces ** char(',') ** (spaces | newLine)
+    val comma = spaces ** char(',') ** (spaces or newLine)
 
-    val newLine_ = spaces | newLine
+    val newLine_ = spaces or newLine
 
-    val null_ = string("null").map(_ => JNull) // ready
+    val null_ = string("null").map(_ => JNull)
     val str = for {
       _    <- char('"')
       str  <- letter.many.slice
       _    <- char('"')
-    } yield JString(str)  // ready
+    } yield JString(str)
 
     def array: Parser[JArray] = for {
       _     <- char('[') ** newLine_
-      vals  <- (bool | number | null_ | str | array | obj).split(comma)
+      vals  <- (bool or number or null_ or str or array or obj).split(comma)
       _     <- newLine_ ** char(']')
     } yield JArray(vals.toVector)
 
     def kv: Parser[(String, JSON)] = for {
       key   <- str
       _     <- spaces ** char(':') ** spaces
-      value <- bool | number | null_ | str | array | obj
+      value <- bool or number or null_ or str or array or obj
     } yield key.get -> value
 
     def obj: Parser[JObject] = for {
