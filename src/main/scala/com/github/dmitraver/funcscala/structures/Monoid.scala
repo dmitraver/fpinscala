@@ -55,12 +55,7 @@ object Application {
   }
 
   def foldLeft[A, B](list: List[A], z: B)(f: (A, B) => B): B = {
-    val curried = curry(f)
-    foldMap(list, new EndoMonoid[B])(curried)(z)
-  }
-
-  def curry[A, B, C](f: (A, B) => C): A => B => C = {
-    (a: A) => (b: B) => f(a, b)
+    foldMap(list, new EndoMonoid[B])(f.curried)(z)
   }
 
   def main(args: Array[String]): Unit = {
