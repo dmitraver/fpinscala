@@ -39,3 +39,37 @@ class OptionMonoid[A] extends Monoid[Option[A]] {
   override def op(a1: Option[A], a2: Option[A]): Option[A] = a1.orElse(a2)
   override def zero: Option[A] = None
 }
+
+class EndoMonoid[A] extends Monoid[A => A] {
+  override def op(a1: (A) => A, a2: (A) => A): (A) => A = a => a2(a1(a))
+  override def zero: (A) => A = a => a
+}
+
+object Application {
+  def concatenate[A](list: List[A], monoid: Monoid[A]): A = {
+    list.foldLeft(monoid.zero)(monoid.op)
+  }
+
+  def foldMap[A, B](list: List[A], monoid: Monoid[B])(f: A => B): B = {
+    list.map(f).foldLeft(monoid.zero)(monoid.op)
+  }
+
+  def foldLeft[A, B](list: List[A], z: B)(f: (A, B) => B): B = {
+    val curried = curry(f)
+    foldMap(list, new EndoMonoid[B])(curried)(z)
+  }
+
+  def curry[A, B, C](f: (A, B) => C): A => B => C = {
+    (a: A) => (b: B) => f(a, b)
+  }
+
+  def main(args: Array[String]): Unit = {
+    val words = List("Hi", "Whats", "up", "dawg")
+    val strMonoid = new StringMonoid
+    println(words.foldLeft(strMonoid.zero)(strMonoid.op))
+    println(words.foldRight(strMonoid.zero)(strMonoid.op))
+    println(foldLeft(List(1,2,3,4), 0)(_ + _))
+  }
+}
+
+
