@@ -58,12 +58,23 @@ object Application {
     foldMap(list, new EndoMonoid[B])(f.curried)(z)
   }
 
+  def foldMapV[A, B](v: IndexedSeq[A], m: Monoid[B])(f: A => B): B = {
+    if (v.isEmpty) m.zero
+    else if (v.size == 1) f(v.head)
+    else {
+      val middle = v.size / 2
+      val (left, right) = v.splitAt(middle)
+      m.op(foldMapV(left, m)(f), foldMapV(right, m)(f))
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     val words = List("Hi", "Whats", "up", "dawg")
     val strMonoid = new StringMonoid
     println(words.foldLeft(strMonoid.zero)(strMonoid.op))
     println(words.foldRight(strMonoid.zero)(strMonoid.op))
     println(foldLeft(List(1,2,3,4), 0)(_ + _))
+    println(foldMapV(Vector[String](), new IntAdditionMonoid)(x => x.toInt))
   }
 }
 
