@@ -30,9 +30,20 @@ object StreamFoldable extends Foldable[Stream] {
 }
 
 object TreeFoldable extends Foldable[Tree] {
-  override def foldRight[A, B](as: Tree[A])(z: B)(f: (A, B) => B): B = ???
-  override def foldLeft[A, B](as: Tree[A])(z: B)(f: (B, A) => B): B = ???
-  override def foldMap[A, B](as: Tree[A])(f: (A) => B)(mb: Monoid[B]): B = ???
+  override def foldRight[A, B](as: Tree[A])(z: B)(f: (A, B) => B): B = as match {
+    case Leaf(x) => f(x, z)
+    case Branch(l, r) => foldRight(l)(foldRight(r)(z)(f))(f)
+  }
+
+  override def foldLeft[A, B](as: Tree[A])(z: B)(f: (B, A) => B): B = as match {
+    case Leaf(x) => f(z, x)
+    case Branch(l, r) => foldLeft(r)(foldLeft(l)(z)(f))(f)
+  }
+
+  override def foldMap[A, B](as: Tree[A])(f: (A) => B)(mb: Monoid[B]): B = as match {
+    case Leaf(x) => f(x)
+    case Branch(l, r) => mb.op(foldMap(l)(f)(mb), foldMap(r)(f)(mb))
+  }
 }
 
 
