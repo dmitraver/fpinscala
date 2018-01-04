@@ -68,6 +68,18 @@ object Application {
     }
   }
 
+  def isOrdered(seq: IndexedSeq[Int]): Boolean = {
+    val monoid = new Monoid[(Int, Boolean)] {
+      override def op(a1: (Int, Boolean), a2: (Int, Boolean)): (Int, Boolean) = {
+        if (!a2._2) (a1._1, false) else (a1._1, a1._1 <= a2._1)
+      }
+
+      override def zero: (Int, Boolean) = (Int.MaxValue, true)
+    }
+
+    foldMapV(seq, monoid)(a => (a, true))._2
+  }
+
   def main(args: Array[String]): Unit = {
     val words = List("Hi", "Whats", "up", "dawg")
     val strMonoid = new StringMonoid
@@ -75,6 +87,10 @@ object Application {
     println(words.foldRight(strMonoid.zero)(strMonoid.op))
     println(foldLeft(List(1,2,3,4), 0)(_ + _))
     println(foldMapV(Vector[String](), new IntAdditionMonoid)(x => x.toInt))
+    println(isOrdered(Vector(1, 2, 3)))
+    println(isOrdered(Vector(1, 2, 1)))
+    println(isOrdered(Vector(1)))
+    println(isOrdered(Vector(3, 2, 1)))
   }
 }
 
