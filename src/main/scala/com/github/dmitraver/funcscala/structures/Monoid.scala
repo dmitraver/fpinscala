@@ -68,6 +68,32 @@ object Application {
     }
   }
 
+  def productMonoid[A, B](a: Monoid[A], b: Monoid[B]): Monoid[(A, B)] = {
+    new Monoid[(A, B)] {
+      override def op(a1: (A, B), a2: (A, B)): (A, B) = (a.op(a1._1, a2._1), b.op(a1._2, a2._2))
+      override def zero: (A, B) = (a.zero, b.zero)
+    }
+  }
+
+  def mapMergeMonoid[K, V] (V: Monoid[V]): Monoid[Map[K, V]] = {
+    new Monoid[Map[K, V]] {
+      override def op(a1: Map[K, V], a2: Map[K, V]): Map[K, V] =
+        (a1.keySet ++ a2.keySet).foldLeft(zero) { (acc, k) =>
+          acc.updated(k, V.op(a1.getOrElse(k, V.zero), a2.getOrElse(k, V.zero)))
+        }
+      override def zero: Map[K, V] = Map[K, V]()
+    }
+  }
+
+  def functionMonoid[A, B](B: Monoid[B]): Monoid[A => B] = {
+    new Monoid[A => B] {
+      override def op(a1: A => B, a2: A => B): A => B =
+        a =>
+          B.op(a1(a), a2(a))
+      override def zero: A => B = a => B.zero
+    }
+  }
+
   def isOrdered(seq: IndexedSeq[Int]): Boolean = {
     val monoid = new Monoid[(Int, Boolean)] {
       override def op(a1: (Int, Boolean), a2: (Int, Boolean)): (Int, Boolean) = {
