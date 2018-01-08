@@ -1,5 +1,7 @@
 package com.github.dmitraver.funcscala.structures
 
+import com.github.dmitraver.funcscala.structures.WC.wordCount
+
 trait Monoid[A] {
   def op(a1: A, a2: A): A // satisfies op(x, op(y, z)) == op(op(x, y), z)
   def zero: A // satisfies op(x, zero) == x and op(zero, x) == x
@@ -106,6 +108,10 @@ object Application {
     foldMapV(seq, monoid)(a => (a, true))._2
   }
 
+  def bag[A](seq: IndexedSeq[A]): Map[A, Int] = {
+    IndexedSeqFoldable.foldMap(seq)(elem => Map(elem -> 1))(mapMergeMonoid(new IntAdditionMonoid))
+  }
+
   def main(args: Array[String]): Unit = {
     val words = List("Hi", "Whats", "up", "dawg")
     val strMonoid = new StringMonoid
@@ -117,6 +123,16 @@ object Application {
     println(isOrdered(Vector(1, 2, 1)))
     println(isOrdered(Vector(1)))
     println(isOrdered(Vector(3, 2, 1)))
+
+
+    // composing monoids for fuse traversals
+    val m = productMonoid(new IntAdditionMonoid, new IntAdditionMonoid)
+    val p = ListFoldable.foldMap(List(1, 2, 3, 4))(a => (1, a))(m)
+    val mean = p._1 / p._2
+
+    println(bag(Vector("a", "b", "c", "a", "c")))
+
+    println(wordCount("A very important question. Does it work?"))
   }
 }
 
