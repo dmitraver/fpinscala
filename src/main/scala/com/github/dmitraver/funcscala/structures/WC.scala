@@ -15,6 +15,20 @@ object WC {
 
     override def zero: WC = Stub("")
   }
+
+  def wordCount(s: String): Int = {
+    def charToWc(c: Char): WC = {
+      if (c.isWhitespace) {
+        Part("", 0, "")
+      } else Stub(c.toString)
+    }
+
+    val result = IndexedSeqFoldable.foldMap(s.toIndexedSeq)(charToWc)(wcMonoid)
+    result match {
+      case Stub(_) => 1
+      case Part(_, n, _) => n + 2
+    }
+  }
 }
 
 
