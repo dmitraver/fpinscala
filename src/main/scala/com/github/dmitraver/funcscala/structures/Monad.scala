@@ -1,5 +1,7 @@
 package com.github.dmitraver.funcscala.structures
 
+
+// associativity law: x.flatMap(f).flatMap(g) == x.flatMap(a => f(a).flatMap(g))
 trait Monad[F[_]] extends Functor[F]{
   def unit[A](a: => A): F[A]
   def map[A, B](fa: F[A])(f: A => B): F[B] = {
@@ -33,6 +35,12 @@ trait Monad[F[_]] extends Functor[F]{
   def filterM[A](ms: List[A])(f: A => F[Boolean]): F[List[A]] = ms match {
     case Nil => unit(Nil)
     case x :: xs => flatMap(f(x))(b => if (b) map(filterM(xs)(f))(y => x :: y) else filterM(xs)(f))
+  }
+
+  // a => F[B] - Kleisli arrow
+  // compose(compose(f, g), h) == compose(f, compose(g, h))
+  def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = {
+    a => flatMap(f(a))(b => g(b))
   }
 }
 
@@ -71,6 +79,7 @@ object MonadApplication {
 
     // filterM
     println(OptionMonad.filterM(List(1, 2, 3, 4, 5, 6))(x => Some(x % 2 == 0)))
+    println(ListMonad.filterM(List(1, 2))(x => List(true, false)))
   }
 }
 
