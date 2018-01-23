@@ -1,6 +1,6 @@
 package com.github.dmitraver.funcscala.structures
 
-import com.github.dmitraver.funcscala.Tree
+import com.github.dmitraver.funcscala.{Branch, Leaf, Tree}
 
 import scala.language.higherKinds
 
@@ -27,6 +27,23 @@ object StreamFoldable extends Foldable[Stream] {
   override def foldRight[A, B](as: Stream[A])(z: B)(f: (A, B) => B): B = as.foldRight(z)(f)
   override def foldLeft[A, B](as: Stream[A])(z: B)(f: (B, A) => B): B = as.foldLeft(z)(f)
   override def foldMap[A, B](as: Stream[A])(f: (A) => B)(mb: Monoid[B]): B = as.map(f).foldLeft(mb.zero)(mb.op)
+}
+
+object OptionFoldable extends Foldable[Option] {
+  override def foldRight[A, B](as: Option[A])(z: B)(f: (A, B) => B): B = as match {
+    case None => z
+    case Some(x) => f(x, z)
+  }
+
+  override def foldLeft[A, B](as: Option[A])(z: B)(f: (B, A) => B): B = as match {
+    case None => z
+    case Some(x) => f(z, x)
+  }
+
+  override def foldMap[A, B](as: Option[A])(f: (A) => B)(mb: Monoid[B]): B = as match {
+    case None => mb.zero
+    case Some(x) => f(x)
+  }
 }
 
 object TreeFoldable extends Foldable[Tree] {
