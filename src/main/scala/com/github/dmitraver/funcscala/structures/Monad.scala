@@ -7,6 +7,11 @@ trait Monad[F[_]] extends Functor[F]{
   def map[A, B](fa: F[A])(f: A => B): F[B] = {
     flatMap(fa)(a => unit(f(a)))
   }
+
+  def flatMapViaCompose[A, B](fa: F[A])(f: A => F[B]): F[B] = {
+    compose((_: Unit) => fa, f)()
+  }
+
   def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B]
 
   def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] = {
@@ -42,6 +47,14 @@ trait Monad[F[_]] extends Functor[F]{
   def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = {
     a => flatMap(f(a))(b => g(b))
   }
+
+  def join[A](mma: F[F[A]]): F[A] = {
+    flatMap(mma)(a => a)
+  }
+
+  def flatMapViaJoinAndMap[A, B](ma: F[A])(f: A => F[B]): F[B] = {
+    join(map(ma)(f))
+  }
 }
 
 object OptionMonad extends Monad[Option] {
@@ -58,6 +71,18 @@ object ListMonad extends Monad[List] {
   override def unit[A](a: => A): List[A] = List(a)
   override def flatMap[A, B](fa: List[A])(f: A => List[B]): List[B] = fa flatMap f
 }
+
+case class Id[A](value: A) {
+  def map[B](f: A => B): Id[B] = Id(f(value))
+  def flatMap[B](f: A => Id[B]): Id[B] = f(value)
+}
+
+object IdMonad extends Monad[Id] {
+  override def unit[A](a: => A): Id[A] = Id(a)
+  override def flatMap[A, B](fa: Id[A])(f: (A) => Id[B]): Id[B] = fa.flatMap(f)
+}
+
+
 
 object MonadApplication {
   def main(args: Array[String]): Unit = {
