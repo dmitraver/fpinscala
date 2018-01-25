@@ -1,5 +1,8 @@
 package com.github.dmitraver.funcscala.structures
 
+import com.github.dmitraver.funcscala.random.State
+import com.github.dmitraver.funcscala.structures.MonadApplication.IntState
+
 
 // associativity law: x.flatMap(f).flatMap(g) == x.flatMap(a => f(a).flatMap(g))
 trait Monad[F[_]] extends Functor[F]{
@@ -29,10 +32,7 @@ trait Monad[F[_]] extends Functor[F]{
   }
 
   def replicateM[A](n: Int, ma: F[A]): F[List[A]] = {
-    if (n == 0) unit(Nil)
-    else {
-      flatMap(ma)(a => map(replicateM(n - 1, ma))(b => a :: b))
-    }
+    sequence(List.fill(n)(ma))
   }
 
   def product[A,B](ma: F[A], mb: F[B]): F[(A, B)] = map2(ma, mb)((_, _))
@@ -82,9 +82,36 @@ object IdMonad extends Monad[Id] {
   override def flatMap[A, B](fa: Id[A])(f: (A) => Id[B]): Id[B] = fa.flatMap(f)
 }
 
+object IntStateMonad extends Monad[IntState] {
+  override def unit[A](a: => A): IntState[A] = State(s => (a, s))
+  override def flatMap[A, B](fa: IntState[A])(f: (A) => IntState[B]): IntState[B] = fa flatMap f
+}
+
+case class Reader[R, A](run: R => A)
+
+object Reader {
+  def readerMonad[R] = new Monad[({type f[x] = Reader[R, x]})#f] {
+    override def unit[A](a: => A): Reader[R, A] = Reader(r => a)
+    override def flatMap[A, B](fa: Reader[R, A])(f: (A) => Reader[R, B]): Reader[R, B] = {
+      Reader { r =>
+        val a = fa.run(r)
+        val b = f(a)
+        b.run(b)
+      }
+    }
+  }
+}
 
 
 object MonadApplication {
+
+  type IntState[A] = State[Int, A]
+
+  def stateMonad[S] = new Monad[({type f[x] = State[S, x]})#f] {
+    override def unit[A](a: => A): State[S, A] = State(s => (a, s))
+    override def flatMap[A, B](fa: State[S, A])(f: (A) => State[S, B]): State[S, B] = fa flatMap f
+  }
+
   def main(args: Array[String]): Unit = {
     // sequence
     println(OptionMonad.sequence(List(Some(1), Some(2), Some(3))))
@@ -99,12 +126,22 @@ object MonadApplication {
     println(OptionMonad.replicateM(5, None))
 
     //replicate list
-    println(ListMonad.replicateM(5, List(1, 2)))
-    println(ListMonad.replicateM(5, Nil))
+    println("Replicate list 1: " + ListMonad.replicateM(5, List(1, 2)))
+    println("Replicate list: " + ListMonad.replicateM(5, Nil))
 
     // filterM
     println(OptionMonad.filterM(List(1, 2, 3, 4, 5, 6))(x => Some(x % 2 == 0)))
     println(ListMonad.filterM(List(1, 2))(x => List(true, false)))
+
+    val result = for {
+      a <- Id("aaa")
+      b <- Id("bbb")
+    } yield a + b
+
+    println(result)
+
+    val value = stateMonad[Int].replicateM(5, new State[Int, Int](s => (s, s + 1)))
+    println(value.run(1))
   }
 }
 
