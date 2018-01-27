@@ -96,7 +96,7 @@ object Reader {
       Reader { r =>
         val a = fa.run(r)
         val b = f(a)
-        b.run(b)
+        b.run(r)
       }
     }
   }
@@ -140,8 +140,18 @@ object MonadApplication {
 
     println(result)
 
-    val value = stateMonad[Int].replicateM(5, new State[Int, Int](s => (s, s + 1)))
+    val value = stateMonad[Int].replicateM(2, new State[Int, Int](s => (1, s + 1)))
     println(value.run(1))
+
+    val a = stateMonad.map2(State((s: Int) => (1, s + 1)), State((s: Int) => (2, s + 1)))((a, b) => a + b)
+    println("State map2:" + a.run(1))
+
+    val intReader = Reader.readerMonad[Int]
+    val seq = intReader.sequence(List(Reader((r: Int) => r + 1), Reader((r: Int) => r + 2), Reader((r: Int) => r + 3)))
+    println(seq.run(1))
+
+    val repl = intReader.replicateM(2, Reader((r: Int) => r + 1))
+    println(repl.run(1))
   }
 }
 
