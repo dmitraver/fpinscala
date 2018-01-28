@@ -5,9 +5,9 @@ import com.github.dmitraver.funcscala.structures.MonadApplication.IntState
 
 
 // associativity law: x.flatMap(f).flatMap(g) == x.flatMap(a => f(a).flatMap(g))
-trait Monad[F[_]] extends Functor[F]{
+trait Monad[F[_]] extends Applicative[F]{
   def unit[A](a: => A): F[A]
-  def map[A, B](fa: F[A])(f: A => B): F[B] = {
+  override def map[A, B](fa: F[A])(f: A => B): F[B] = {
     flatMap(fa)(a => unit(f(a)))
   }
 
@@ -20,22 +20,6 @@ trait Monad[F[_]] extends Functor[F]{
   def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] = {
     flatMap(fa)(a => map(fb)(b => f(a,b)))
   }
-
-  def sequence[A](lma: List[F[A]]): F[List[A]] = lma match {
-    case Nil => unit(Nil)
-    case x :: xs => flatMap(x)(a => map(sequence(xs))(b => a :: b))
-  }
-
-  def traverse[A, B](lma: List[A])(f: A => F[B]): F[List[B]] = lma match {
-    case Nil => unit(Nil)
-    case x :: xs => flatMap(f(x))(a => map(traverse(xs)(f))(b => a :: b))
-  }
-
-  def replicateM[A](n: Int, ma: F[A]): F[List[A]] = {
-    sequence(List.fill(n)(ma))
-  }
-
-  def product[A,B](ma: F[A], mb: F[B]): F[(A, B)] = map2(ma, mb)((_, _))
 
   def filterM[A](ms: List[A])(f: A => F[Boolean]): F[List[A]] = ms match {
     case Nil => unit(Nil)
@@ -145,6 +129,9 @@ object MonadApplication {
 
     val a = stateMonad.map2(State((s: Int) => (1, s + 1)), State((s: Int) => (2, s + 1)))((a, b) => a + b)
     println("State map2:" + a.run(1))
+    val b = stateMonad.sequence(List(State((s: Int) => (1, s + 1)), State((s: Int) => (2, s + 1))))
+    println("State sequence:" + b.run(1))
+
 
     val intReader = Reader.readerMonad[Int]
     val seq = intReader.sequence(List(Reader((r: Int) => r + 1), Reader((r: Int) => r + 2), Reader((r: Int) => r + 3)))
