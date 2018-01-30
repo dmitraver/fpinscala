@@ -55,7 +55,29 @@ trait Applicative[F[_]] extends Functor[F] {
   }
 }
 
+sealed trait Validation[+E, +A]
+case class Failure[E](head: E, tail: Vector[E] = Vector()) extends Validation[E, Nothing]
+case class Success[A](a: A) extends Validation[Nothing, A]
+
 object ApplicativeApplication {
+
+  def validationApplicative[E] = new Applicative[({ type f[x] = Validation[E, x]})#f] {
+    override def map2[A, B, C](fa: Validation[E, A], fb: Validation[E, B])(f: (A, B) => C): Validation[E, C] = (fa, fb) match {
+      case (Success(a1), Success(a2)) => Success(f(a1, a2))
+      case (Failure(h1, t1), Failure(h2, t2)) => Failure(h1, t1 ++ Vector(h2) ++ t2)
+      case (_, a@Failure(_, _)) => a
+      case (a@Failure(_, _), _) => a
+    }
+
+    override def unit[A](a: => A): Validation[E, A] = Success(a)
+  }
+
+  val streamApplicative = new Applicative[Stream] {
+    override def map2[A, B, C](fa: Stream[A], fb: Stream[B])(f: (A, B) => C): Stream[C] = fa zip fb map f.tupled
+    override def unit[A](a: => A): Stream[A] = Stream.continually(a)
+  }
+
+
   def main(args: Array[String]): Unit = {
 
   }

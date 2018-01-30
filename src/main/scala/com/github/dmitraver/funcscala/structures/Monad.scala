@@ -96,6 +96,11 @@ object MonadApplication {
     override def flatMap[A, B](fa: State[S, A])(f: (A) => State[S, B]): State[S, B] = fa flatMap f
   }
 
+  def eitherMonad[E] = new Monad[({type f[x] = Either[E, x]})#f] {
+    override def unit[A](a: => A): Either[E, A] = Right(a)
+    override def flatMap[A, B](fa: Either[E, A])(f: (A) => Either[E, B]): Either[E, B] = fa.right.flatMap(f)
+  }
+
   def main(args: Array[String]): Unit = {
     // sequence
     println(OptionMonad.sequence(List(Some(1), Some(2), Some(3))))
