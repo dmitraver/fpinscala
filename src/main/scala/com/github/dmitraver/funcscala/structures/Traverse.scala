@@ -26,3 +26,14 @@ object OptionTraverse extends Traverse[Option] {
     fa.foldRight(AG.unit(None: Option[B]))( (a, acc) => AG.map2(f(a),acc)((a, b) => Some(a)))
   }
 }
+
+case class Tree[+A](head: A, tail: List[Tree[A]])
+object TreeTraverse extends Traverse[Tree] {
+  override def traverse[G[_] : Applicative, A, B](fa: Tree[A])(f: (A) => G[B]): G[Tree[B]] = {
+    val AG = implicitly[Applicative[G]]
+    fa match {
+      case a@Tree(h, Nil) => AG.map2(f(h), AG.unit(()))((b, _) => Tree(b, Nil))
+      case Tree(h, t) => AG.map2(f(h), ListTraverse.traverse(t)(tree => traverse(tree)(f)))((a, b) => Tree(a, b))
+    }
+  }
+}
