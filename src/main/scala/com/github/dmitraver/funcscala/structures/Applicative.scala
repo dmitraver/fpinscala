@@ -46,6 +46,10 @@ trait Applicative[F[_]] extends Functor[F] {
     traverse(fas)(a => a)
   }
 
+  def sequenceMap[K, V](ofa: Map[K, F[V]]): F[Map[K, V]] = {
+    ofa.foldRight(unit(Map.empty[K, V]))((kfv, fm) => map2(kfv._2, fm)((v, map) => map.updated(kfv._1, v)))
+  }
+
   def replicateM[A](n: Int, fa: F[A]): F[List[A]] = {
     sequence(List.fill(n)(fa))
   }
@@ -59,8 +63,7 @@ sealed trait Validation[+E, +A]
 case class Failure[E](head: E, tail: Vector[E] = Vector()) extends Validation[E, Nothing]
 case class Success[A](a: A) extends Validation[Nothing, A]
 
-object ApplicativeApplication {
-
+object Applicatives {
   def validationApplicative[E] = new Applicative[({ type f[x] = Validation[E, x]})#f] {
     override def map2[A, B, C](fa: Validation[E, A], fb: Validation[E, B])(f: (A, B) => C): Validation[E, C] = (fa, fb) match {
       case (Success(a1), Success(a2)) => Success(f(a1, a2))
@@ -77,6 +80,13 @@ object ApplicativeApplication {
     override def unit[A](a: => A): Stream[A] = Stream.continually(a)
   }
 
+  val idApplicative = new Applicative[Id] {
+    override def map2[A, B, C](fa: Id[A], fb: Id[B])(f: (A, B) => C): Id[C] = Id(f(fa.value, fb.value))
+    override def unit[A](a: => A): Id[A] = Id(a)
+  }
+}
+
+object ApplicativeApplication {
 
   def main(args: Array[String]): Unit = {
 

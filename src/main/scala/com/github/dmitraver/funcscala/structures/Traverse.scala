@@ -1,6 +1,6 @@
 package com.github.dmitraver.funcscala.structures
 
-trait Traverse[F[_]] {
+trait Traverse[F[_]] extends Functor[F]{
 
   // traverse[A, B] (as: List[A])(f: A => F[B]): F[List[B]]
   def traverse[G[_]: Applicative, A, B](fa: F[A])(f: A => G[B]): G[F[B]] = {
@@ -10,6 +10,11 @@ trait Traverse[F[_]] {
   // sequence[A](fas: List[F[A]]): F[List[A]]
   def sequence[G[_]:Applicative, A](fga: F[G[A]]): G[F[A]] = {
     traverse(fga)(ga => ga)
+  }
+
+  override def map[A, B](as: F[A])(f: (A) => B): F[B] = {
+    implicit val id = Applicatives.idApplicative
+    traverse(as) (a => id.unit(f(a))).value
   }
 }
 
@@ -27,13 +32,19 @@ object OptionTraverse extends Traverse[Option] {
   }
 }
 
-case class Tree[+A](head: A, tail: List[Tree[A]])
-object TreeTraverse extends Traverse[Tree] {
-  override def traverse[G[_] : Applicative, A, B](fa: Tree[A])(f: (A) => G[B]): G[Tree[B]] = {
+case class Tree_[+A](head: A, tail: List[Tree_[A]])
+object TreeTraverse extends Traverse[Tree_] {
+  override def traverse[G[_] : Applicative, A, B](fa: Tree_[A])(f: (A) => G[B]): G[Tree_[B]] = {
     val AG = implicitly[Applicative[G]]
-    fa match {
-      case a@Tree(h, Nil) => AG.map2(f(h), AG.unit(()))((b, _) => Tree(b, Nil))
-      case Tree(h, t) => AG.map2(f(h), ListTraverse.traverse(t)(tree => traverse(tree)(f)))((a, b) => Tree(a, b))
-    }
+    AG.map2(f(fa.head), ListTraverse.traverse(fa.tail)(tree => traverse(tree)(f)))((a, b) => Tree_(a, b))
+  }
+}
+
+
+object TraverseApplication {
+  def main(args: Array[String]): Unit = {
+    println(OptionTraverse.map(Some(10))(_ * 2))
+    println(OptionTraverse.map(None: Option[Int])(_ * 2))
+    println(ListTraverse.map(List(1, 2, 3, 4, 5))(_ * 2))
   }
 }
