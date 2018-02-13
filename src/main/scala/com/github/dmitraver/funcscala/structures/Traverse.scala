@@ -76,6 +76,41 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
   override def foldLeft[A, B](as: F[A])(z: B)(f: (B, A) => B): B = {
     mapAccum(as, z)((a, s) => ((), f(s, a)))._2
   }
+
+  def zip[A, B](fa: F[A], fb: F[B]): F[(A, B)] = {
+    mapAccum(fa, toList(fb)) {
+      case (a, Nil) => sys.error("zip: incompatible shapes")
+      case (a, b :: bs) => ((a, b), bs)
+    }._1
+  }
+
+  def zipL[A, B](fa: F[A], fb: F[B]): F[(A, Option[B])] = {
+    mapAccum(fa, toList(fb)) {
+      case (a, Nil) => ((a, None), Nil)
+      case (a, b :: bs) => ((a, Some(b)), bs)
+    }._1
+  }
+
+  def zipR[A, B](fa: F[A], fb: F[B]): F[(Option[A], B)] = {
+    mapAccum(fb, toList(fa)) {
+      case (b, Nil) => ((None, b), Nil)
+      case (b, a :: as) => ((Some(a), b), as)
+    }._1
+  }
+
+  def fuse[G[_]: Applicative, H[_]: Applicative, A, B](fa: F[A])(f: A => G[B], g: A => H[B]): (G[F[B]], H[F[B]]) = {
+    val G = implicitly[Applicative[G]]
+    val H = implicitly[Applicative[H]]
+
+    val applicative = new Applicative[({type f[x] = (G[x], H[x])})#f] {
+      override def map2[A, B, C](fa: (G[A], H[A]), fb: (G[B], H[B]))(f: (A, B) => C): (G[C], H[C]) = {
+        (G.map2(fa._1, fb._1)(f), H.map2(fa._2, fb._2)(f))
+      }
+      override def unit[A](a: => A): (G[A], H[A]) = (G.unit(a), H.unit(a))
+    }
+
+    traverse[({type f[x] = (G[x], H[x])})#f, A, B](fa)(a => (f(a), g(a)))(applicative)
+  }
 }
 
 object ListTraverse extends Traverse[List] {
@@ -109,5 +144,6 @@ object TraverseApplication {
 
     println(ListTraverse.reverse(List(1,2,3,4,5,6)))
     println(ListTraverse.foldLeft(List(1,2,3))(0)(_ + _))
+    println(ListTraverse.fuse(List(1, 2, 3))(a => Some(a))(b => None))
   }
 }
