@@ -83,8 +83,6 @@ object ListTraverse extends Traverse[List] {
     val AG = implicitly[Applicative[G]]
     fa.foldRight(AG.unit(Nil: List[B]))((a, acc) => AG.map2(f(a), acc)(_ :: _))
   }
-
-  override def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B = ???
 }
 
 object OptionTraverse extends Traverse[Option] {
@@ -92,8 +90,6 @@ object OptionTraverse extends Traverse[Option] {
     val AG = implicitly[Applicative[G]]
     fa.foldRight(AG.unit(None: Option[B]))( (a, acc) => AG.map2(f(a),acc)((a, b) => Some(a)))
   }
-
-  override def foldRight[A, B](as: Option[A])(z: B)(f: (A, B) => B): B = ???
 }
 
 case class Tree_[+A](head: A, tail: List[Tree_[A]])
@@ -102,8 +98,6 @@ object TreeTraverse extends Traverse[Tree_] {
     val AG = implicitly[Applicative[G]]
     AG.map2(f(fa.head), ListTraverse.traverse(fa.tail)(tree => traverse(tree)(f)))((a, b) => Tree_(a, b))
   }
-
-  override def foldRight[A, B](as: Tree_[A])(z: B)(f: (A, B) => B): B = ???
 }
 
 
