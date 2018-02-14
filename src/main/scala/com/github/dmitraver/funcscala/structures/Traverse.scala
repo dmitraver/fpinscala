@@ -111,6 +111,24 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] {
 
     traverse[({type f[x] = (G[x], H[x])})#f, A, B](fa)(a => (f(a), g(a)))(applicative)
   }
+
+  def compose[G[_]: Traverse]: Traverse[({type f[x] = F[G[x]]})#f] = {
+    ???
+  }
+
+  def composeM[F[_], G[_]](F: Monad[F], G: Monad[G], T: Traverse[G]): Monad[({type f[x] = F[G[x]]})#f] = {
+    ???
+  }
+}
+
+case class OptionT[M[_]: Monad, A](value: M[Option[A]]) {
+  def flatMap[B](f: A => OptionT[M, B]): OptionT[M, B] = {
+    val M = implicitly[Monad[M]]
+    OptionT(M.flatMap(value) {
+      case Some(v) => f(v).value
+      case None => M.unit(None)
+    })
+  }
 }
 
 object ListTraverse extends Traverse[List] {
@@ -144,6 +162,5 @@ object TraverseApplication {
 
     println(ListTraverse.reverse(List(1,2,3,4,5,6)))
     println(ListTraverse.foldLeft(List(1,2,3))(0)(_ + _))
-    println(ListTraverse.fuse(List(1, 2, 3))(a => Some(a))(b => None))
   }
 }
