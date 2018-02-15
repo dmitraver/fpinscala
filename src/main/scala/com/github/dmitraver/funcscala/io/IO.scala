@@ -28,27 +28,31 @@ object IO extends Monad[IO] {
   def empty = new IO[Unit] {
     override def run: Unit = ()
   }
+
+  def apply[A](a: => A): IO[A] = unit(a)
 }
 
 object IOApplication {
-  def printLine(msg: String): IO[Unit] = {
-    new IO[Unit] {
-      override def run: Unit = println(msg)
-    }
+  def printLine(msg: String): IO[Unit] = IO {
+    println(msg)
   }
 
-  def readLine: IO[String] = {
-    IO.unit(scala.io.StdIn.readLine())
+  def readLine: IO[String] = IO {
+    scala.io.StdIn.readLine()
   }
+
+  def greet: IO[Unit] = for {
+    _      <- printLine("Please enter your name")
+    name   <- readLine
+    _      <- printLine(s"Thank you $name!")
+  } yield ()
 
   def main(args: Array[String]): Unit = {
-    val greet: IO[Unit] = for {
-      _      <- printLine("Please enter your name")
-      name   <- readLine
-      _      <- printLine(s"Thank you $name!")
-    } yield ()
+    val echo = readLine flatMap printLine
+    val readInt = readLine map(_.toInt)
+    val ints = IO.replicateM(2, readInt).run
+    println(ints)
 
-    greet.run
   }
 
 
