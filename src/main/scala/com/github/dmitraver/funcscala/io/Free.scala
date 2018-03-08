@@ -24,12 +24,12 @@ object Free {
   }
 
   @annotation.tailrec
-  def runTrampoline[A](a: Free[Function0[A], A]): A = a match {
+  def runTrampoline[A](a: Free[Function0, A]): A = a match {
     case Return(a) => a
     case Suspend(s) => s()
     case FlatMap(x, f) => x match {
-      case Return(a) => f(a)
-      case Suspend(s) => f(s())
+      case Return(a) => runTrampoline(f(a))
+      case Suspend(s) => runTrampoline(f(s()))
       case FlatMap(y, g) => runTrampoline(y flatMap(a => g(a) flatMap f))
     }
   }
